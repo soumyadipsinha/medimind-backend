@@ -5,7 +5,7 @@ export default function checkRequiredFields(fields) {
 
   if (missingFields.length > 0) {
     const error = new Error(
-      `Missing required fields: ${missingFields.join(", ")}`
+      `Missing required fields: ${missingFields.join(", ")}`,
     );
     error.statusCode = 400;
     error.missingFields = missingFields;
