@@ -6,6 +6,7 @@ const ReportSchema = new mongoose.Schema(
     test: { type: mongoose.Schema.Types.ObjectId, ref: "Service", required: true },
     appointment: { type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }, // optional if booked independently
     fileUrl: { type: String }, // SharePoint uploaded report PDF URL
+    sharepointItemId: { type: String }, // SharePoint item ID for CDN streaming
     notes: { type: String },
     isCompleted: { type: Boolean, default: false },
     completedAt: { type: Date },

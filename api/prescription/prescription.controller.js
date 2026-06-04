@@ -2,6 +2,7 @@ import Prescription from "./prescription.model.js";
 import Patient from "../patient/patient.model.js";
 import Doctor from "../doctor/doctor.model.js";
 import Appointment from "../appointment/appointment.model.js";
+import { associateDoctorAndPatient } from "../../utils/consultationHelper.js";
 
 // Fetch prescriptions list
 export const getPrescriptions = async (req, res, next) => {
@@ -71,6 +72,8 @@ export const createPrescription = async (req, res, next) => {
     // Mark appointment as Completed
     apt.status = "Completed";
     await apt.save();
+
+    await associateDoctorAndPatient(doctorProfile._id, apt.patient);
 
     res.status(201).json({ message: "Prescription recorded successfully", prescription });
   } catch (error) {

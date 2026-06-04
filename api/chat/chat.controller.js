@@ -17,68 +17,84 @@ export const getChatUsers = async (req, res, next) => {
     let chatUsers = [];
 
     if (currentUserRole === "patient") {
-      const patientProfile = await Patient.findOne({ user: currentUserId });
+      let patientProfile = await Patient.findOne({ user: currentUserId });
       if (!patientProfile) {
         return res.json([]);
       }
 
-      // Find doctors with confirmed or completed appointments
+      // Sync doctors from all confirmed/completed appointments
       const appointments = await Appointment.find({
         patient: patientProfile._id,
-        status: { $in: ["Confirmed", "Completed"] },
-      }).populate({
-        path: "doctor",
+        status: { $in: ["Confirmed", "Completed"] }
+      });
+      if (appointments.length > 0) {
+        const doctorIds = appointments.map((a) => a.doctor);
+        await Patient.findByIdAndUpdate(patientProfile._id, {
+          $addToSet: { doctors: { $each: doctorIds } }
+        });
+      }
+
+      // Now fetch with populated user fields
+      patientProfile = await Patient.findById(patientProfile._id).populate({
+        path: "doctors",
         populate: { path: "user", select: "name email avatarUrl lastSeen role" }
       });
 
-      // Unique doctor users
-      const seenDoctorUsers = new Set();
-      appointments.forEach((apt) => {
-        if (apt.doctor && apt.doctor.user && !seenDoctorUsers.has(apt.doctor.user._id.toString())) {
-          seenDoctorUsers.add(apt.doctor.user._id.toString());
-          chatUsers.push({
-            _id: apt.doctor.user._id,
-            name: apt.doctor.user.name,
-            email: apt.doctor.user.email,
-            avatarUrl: apt.doctor.user.avatarUrl,
-            lastSeen: apt.doctor.user.lastSeen,
-            role: apt.doctor.user.role,
-            specialization: apt.doctor.specialization,
-          });
-        }
-      });
+      if (patientProfile && patientProfile.doctors) {
+        patientProfile.doctors.forEach((doc) => {
+          if (doc && doc.user) {
+            chatUsers.push({
+              _id: doc.user._id,
+              name: doc.user.name,
+              email: doc.user.email,
+              avatarUrl: doc.user.avatarUrl,
+              lastSeen: doc.user.lastSeen,
+              role: doc.user.role,
+              specialization: doc.specialization,
+            });
+          }
+        });
+      }
 
     } else if (currentUserRole === "doctor") {
-      const doctorProfile = await Doctor.findOne({ user: currentUserId });
+      let doctorProfile = await Doctor.findOne({ user: currentUserId });
       if (!doctorProfile) {
         return res.json([]);
       }
 
-      // Find patients with confirmed or completed appointments
+      // Sync patients from all confirmed/completed appointments
       const appointments = await Appointment.find({
         doctor: doctorProfile._id,
-        status: { $in: ["Confirmed", "Completed"] },
-      }).populate({
-        path: "patient",
+        status: { $in: ["Confirmed", "Completed"] }
+      });
+      if (appointments.length > 0) {
+        const patientIds = appointments.map((a) => a.patient);
+        await Doctor.findByIdAndUpdate(doctorProfile._id, {
+          $addToSet: { patients: { $each: patientIds } }
+        });
+      }
+
+      // Now fetch with populated user fields
+      doctorProfile = await Doctor.findById(doctorProfile._id).populate({
+        path: "patients",
         populate: { path: "user", select: "name email avatarUrl lastSeen role" }
       });
 
-      // Unique patient users
-      const seenPatientUsers = new Set();
-      appointments.forEach((apt) => {
-        if (apt.patient && apt.patient.user && !seenPatientUsers.has(apt.patient.user._id.toString())) {
-          seenPatientUsers.add(apt.patient.user._id.toString());
-          chatUsers.push({
-            _id: apt.patient.user._id,
-            name: apt.patient.user.name,
-            email: apt.patient.user.email,
-            avatarUrl: apt.patient.user.avatarUrl,
-            lastSeen: apt.patient.user.lastSeen,
-            role: apt.patient.user.role,
-            bloodGroup: apt.patient.bloodGroup,
-          });
-        }
-      });
+      if (doctorProfile && doctorProfile.patients) {
+        doctorProfile.patients.forEach((pat) => {
+          if (pat && pat.user) {
+            chatUsers.push({
+              _id: pat.user._id,
+              name: pat.user.name,
+              email: pat.user.email,
+              avatarUrl: pat.user.avatarUrl,
+              lastSeen: pat.user.lastSeen,
+              role: pat.user.role,
+              bloodGroup: pat.bloodGroup,
+            });
+          }
+        });
+      }
     } else if (currentUserRole === "admin") {
       // Admins can see all active patients and doctors
       const allUsers = await User.find({ role: { $in: ["doctor", "patient"] }, isActive: true })

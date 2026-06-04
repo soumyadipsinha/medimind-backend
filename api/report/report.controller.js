@@ -75,11 +75,12 @@ export const uploadReportFile = async (req, res, next) => {
       return res.status(404).json({ message: "Test report record not found" });
     }
 
-    let fileUrl = "";
+    let fileUrl = `/api/reports/${id}/view`;
+    let sharepointItemId = null;
 
     if (req.file) {
       const fileName = `report-${id}-${Date.now()}${path.extname(req.file.originalname)}`;
-      const driveId = process.env.SHAREPOINT_DRIVE_ID;
+      const driveId = process.env.SHAREPOINT_DATA_STORE_DRIVE_ID;
 
       // Try uploading to SharePoint if configured
       if (driveId && process.env.SHAREPOINT_CLIENT_ID && process.env.SHAREPOINT_TENANT_ID) {
@@ -92,22 +93,22 @@ export const uploadReportFile = async (req, res, next) => {
             req.file.buffer
           );
           
-          // Generate a share link
-          fileUrl = await sharepointService.createShareLink(driveId, uploadRes.id);
+          sharepointItemId = uploadRes.id;
         } catch (spError) {
           console.error("SharePoint upload failed, falling back to local file path: ", spError.message);
-          fileUrl = `/uploads/${fileName}`;
+          // Save locally
+          const uploadDir = path.join(process.cwd(), "public", "uploads");
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          fs.writeFileSync(path.join(uploadDir, fileName), req.file.buffer);
         }
       } else {
-        // Fallback to saving report locally or mock URL if SharePoint not configured
-        fileUrl = `/uploads/${fileName}`;
-        
-        // Ensure uploads directory exists
+        // Fallback to saving report locally
         const uploadDir = path.join(process.cwd(), "public", "uploads");
         if (!fs.existsSync(uploadDir)) {
           fs.mkdirSync(uploadDir, { recursive: true });
         }
-        
         fs.writeFileSync(path.join(uploadDir, fileName), req.file.buffer);
       }
     } else {
@@ -115,6 +116,9 @@ export const uploadReportFile = async (req, res, next) => {
     }
 
     report.fileUrl = fileUrl;
+    if (sharepointItemId) {
+      report.sharepointItemId = sharepointItemId;
+    }
     report.notes = notes || "";
     report.isCompleted = true;
     report.completedAt = new Date();
@@ -123,6 +127,44 @@ export const uploadReportFile = async (req, res, next) => {
     await report.save();
 
     res.json({ message: "Report uploaded and marked completed successfully", report });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Stream/View Report file
+export const viewReportFile = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    if (report.sharepointItemId) {
+      const driveId = process.env.SHAREPOINT_DATA_STORE_DRIVE_ID;
+      await sharepointService.streamFile(
+        driveId,
+        report.sharepointItemId,
+        req,
+        res,
+        "application/pdf"
+      );
+    } else {
+      // Local fallback: search public/uploads for files starting with report-[id]
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      if (fs.existsSync(uploadDir)) {
+        const files = fs.readdirSync(uploadDir);
+        const match = files.find(f => f.startsWith(`report-${id}`));
+        if (match) {
+          const filePath = path.join(uploadDir, match);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", "inline");
+          return res.sendFile(filePath);
+        }
+      }
+      res.status(404).json({ message: "Physical report file not found on server" });
+    }
   } catch (error) {
     next(error);
   }
