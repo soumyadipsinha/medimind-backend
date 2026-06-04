@@ -15,6 +15,7 @@ const DoctorSchema = new mongoose.Schema(
     maxPatientsPerDay: { type: Number, required: true, default: 15 },
     bio: { type: String },
     department: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
+    patients: [{ type: mongoose.Schema.Types.ObjectId, ref: "Patient" }],
   },
   {
     timestamps: true,

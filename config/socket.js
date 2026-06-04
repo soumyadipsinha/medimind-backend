@@ -125,27 +125,13 @@ export const initSocket = (server) => {
           if (senderUser.role === "patient" && receiverUser.role === "doctor") {
             const patient = await Patient.findOne({ user: userId });
             const doctor = await Doctor.findOne({ user: receiverId });
-            if (patient && doctor) {
-              patientId = patient._id;
-              doctorId = doctor._id;
+            if (patient && doctor && patient.doctors && patient.doctors.some((id) => id.toString() === doctor._id.toString())) {
+              isAllowed = true;
             }
           } else if (senderUser.role === "doctor" && receiverUser.role === "patient") {
             const doctor = await Doctor.findOne({ user: userId });
             const patient = await Patient.findOne({ user: receiverId });
-            if (doctor && patient) {
-              patientId = patient._id;
-              doctorId = doctor._id;
-            }
-          }
-
-          if (patientId && doctorId) {
-            const Appointment = (await import("../api/appointment/appointment.model.js")).default;
-            const appointment = await Appointment.findOne({
-              patient: patientId,
-              doctor: doctorId,
-              status: { $in: ["Confirmed", "Completed"] },
-            });
-            if (appointment) {
+            if (doctor && patient && doctor.patients && doctor.patients.some((id) => id.toString() === patient._id.toString())) {
               isAllowed = true;
             }
           }

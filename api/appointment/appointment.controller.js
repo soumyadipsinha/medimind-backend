@@ -1,6 +1,7 @@
 import Appointment from "./appointment.model.js";
 import Patient from "../patient/patient.model.js";
 import Doctor from "../doctor/doctor.model.js";
+import { associateDoctorAndPatient } from "../../utils/consultationHelper.js";
 
 // Fetch all appointments based on user role
 export const getAppointments = async (req, res, next) => {
@@ -123,6 +124,10 @@ export const updateAppointmentStatus = async (req, res, next) => {
 
     apt.status = status;
     await apt.save();
+
+    if (status === "Confirmed" || status === "Completed") {
+      await associateDoctorAndPatient(apt.doctor, apt.patient);
+    }
 
     res.json({ message: `Appointment status updated to ${status}`, appointment: apt });
   } catch (error) {

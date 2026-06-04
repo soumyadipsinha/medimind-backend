@@ -18,6 +18,7 @@ const PatientSchema = new mongoose.Schema(
       relation: { type: String, required: true },
       mobileNumber: { type: String, required: true },
     },
+    doctors: [{ type: mongoose.Schema.Types.ObjectId, ref: "Doctor" }],
   },
   {
     timestamps: true,
