@@ -4,6 +4,7 @@ import {
   bookTest,
   uploadReportFile,
   viewReportFile,
+  summarizeReport,
 } from "./report.controller.js";
 import { restrictTo } from "../../middleware/rbac.middleware.js";
 import multer from "multer";
@@ -19,5 +20,6 @@ reportRouter.get("/", getReports);
 reportRouter.post("/book", bookTest);
 reportRouter.post("/:id/upload", restrictTo("admin"), upload.single("file"), uploadReportFile);
 reportRouter.get("/:id/view", viewReportFile);
+reportRouter.post("/:id/summarize", summarizeReport);
 
 export default reportRouter;

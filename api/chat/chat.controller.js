@@ -3,6 +3,7 @@ import User from "../user/user.model.js";
 import Appointment from "../appointment/appointment.model.js";
 import Doctor from "../doctor/doctor.model.js";
 import Patient from "../patient/patient.model.js";
+import axios from "axios";
 
 const isValidDate = (date) => {
   return date && !isNaN(new Date(date).getTime());
@@ -203,5 +204,60 @@ export const markMessagesAsSeen = async (req, res, next) => {
     res.json({ message: "Messages marked as seen" });
   } catch (error) {
     next(error);
+  }
+};
+
+// AI Medical Assistant chatbot endpoint
+export const aiChatbot = async (req, res, next) => {
+  try {
+    const { message, language } = req.body;
+    if (!message) {
+      return res.status(400).json({ message: "Message content is required" });
+    }
+
+    const targetLang = language || "English";
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      const fallback = targetLang === "Bengali"
+        ? "দুঃখিত, এআই হেলথ অ্যাসিস্ট্যান্ট পরিষেবাটি বর্তমানে উপলব্ধ নয়। অনুগ্রহ করে পরে চেষ্টা করুন বা সরাসরি পরামর্শ করুন।"
+        : targetLang === "Hindi"
+        ? "क्षमा करें, AI स्वास्थ्य सहायक सेवा वर्तमान में उपलब्ध नहीं है। कृपया बाद में प्रयास करें या सीधे संपर्क करें।"
+        : "Sorry, the AI health assistant service is currently unavailable. Please try again later or consult directly.";
+      return res.json({ reply: fallback, warning: "OpenAI API key not configured on server." });
+    }
+
+    const systemPrompt = `You are MediMind AI, a helpful and professional clinical assistant chatbot.
+The user's preferred language is ${targetLang}. You must respond in this language (${targetLang}) using its standard script (Gurmukhi/Bengali/Devanagari/Latin characters as appropriate).
+CRITICAL CONSTRAINTS:
+1. ONLY discuss topics related to health, clinical care, wellness, medicine, symptoms, diseases, healthcare advice, and biology.
+2. If the user asks general off-topic questions (e.g., coding, jokes, history, geography, mathematics, entertainment), politely and professionally decline to answer, explaining in the target language (${targetLang}) that you are specialized strictly in medical assistance and cannot help with non-health topics.
+3. Keep your advice brief, practical, empathetic, and formatted in clear bullet points where appropriate.
+4. Always include a disclaimer at the end advising the user to consult a human medical practitioner for final decisions.`;
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        max_tokens: 400,
+        temperature: 0.6
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    const reply = response.data.choices[0].message.content.trim();
+    res.json({ reply });
+  } catch (error) {
+    console.error("OpenAI chatbot error:", error.response?.data || error.message);
+    res.status(500).json({ message: "AI chatbot failed to respond", error: error.message });
   }
 };

@@ -6,6 +6,7 @@ const PrescriptionSchema = new mongoose.Schema(
     doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true },
     appointment: { type: mongoose.Schema.Types.ObjectId, ref: "Appointment", required: true },
     diagnosis: { type: String, required: true },
+    symptoms: { type: String },
     advice: { type: String, required: true },
     medicines: [
       {
