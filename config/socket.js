@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import Message from "../api/chat/chat.model.js";
 import User from "../api/user/user.model.js";
+import Patient from "../api/patient/patient.model.js";
+import Doctor from "../api/doctor/doctor.model.js";
 import { notificationService } from "../api/notification/notification.service.js";
 import { NOTIFICATION_CHANNELS } from "../api/notification/notification.events.js";
 
